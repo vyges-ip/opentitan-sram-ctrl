@@ -133,7 +133,9 @@ module sram_ctrl_regs_reg_top
   // Format: <reg>_<field>_{wd|we|qs}
   //        or <reg>_{wd|we|qs} if field == 1 or 0
   logic alert_test_we;
-  logic alert_test_wd;
+  logic alert_test_fatal_error_wd;
+  logic alert_test_regwen_qs;
+  logic alert_test_regwen_wd;
   logic status_bus_integ_error_qs;
   logic status_init_error_qs;
   logic status_escalated_qs;
@@ -167,14 +169,18 @@ module sram_ctrl_regs_reg_top
   // Register instances
   // R[alert_test]: V(True)
   logic alert_test_qe;
-  logic [0:0] alert_test_flds_we;
+  logic [1:0] alert_test_flds_we;
   assign alert_test_qe = &alert_test_flds_we;
+  // Create REGWEN-gated WE signal
+  logic alert_test_gated_we;
+  assign alert_test_gated_we = alert_test_we && alert_test_regwen_qs;
+  //   F[fatal_error]: 0:0
   prim_subreg_ext #(
     .DW    (1)
-  ) u_alert_test (
+  ) u_alert_test_fatal_error (
     .re     (1'b0),
-    .we     (alert_test_we),
-    .wd     (alert_test_wd),
+    .we     (alert_test_gated_we),
+    .wd     (alert_test_fatal_error_wd),
     .d      ('0),
     .qre    (),
     .qe     (alert_test_flds_we[0]),
@@ -183,6 +189,34 @@ module sram_ctrl_regs_reg_top
     .qs     ()
   );
   assign reg2hw.alert_test.qe = alert_test_qe;
+
+  //   F[regwen]: 31:31
+  prim_subreg #(
+    .DW      (1),
+    .SwAccess(prim_subreg_pkg::SwAccessW0C),
+    .RESVAL  (1'h1),
+    .Mubi    (1'b0)
+  ) u_alert_test_regwen (
+    .clk_i   (clk_i),
+    .rst_ni  (rst_ni),
+    .reinit_i(1'b0),
+
+    // from register interface
+    .we     (alert_test_we),
+    .wd     (alert_test_regwen_wd),
+
+    // from internal hardware
+    .de     (1'b0),
+    .d      ('0),
+
+    // to internal hardware
+    .qe     (alert_test_flds_we[1]),
+    .q      (),
+    .ds     (),
+
+    // to register interface (read)
+    .qs     (alert_test_regwen_qs)
+  );
 
 
   // R[status]: V(False)
@@ -195,6 +229,7 @@ module sram_ctrl_regs_reg_top
   ) u_status_bus_integ_error (
     .clk_i   (clk_i),
     .rst_ni  (rst_ni),
+    .reinit_i(1'b0),
 
     // from register interface
     .we     (1'b0),
@@ -222,6 +257,7 @@ module sram_ctrl_regs_reg_top
   ) u_status_init_error (
     .clk_i   (clk_i),
     .rst_ni  (rst_ni),
+    .reinit_i(1'b0),
 
     // from register interface
     .we     (1'b0),
@@ -249,6 +285,7 @@ module sram_ctrl_regs_reg_top
   ) u_status_escalated (
     .clk_i   (clk_i),
     .rst_ni  (rst_ni),
+    .reinit_i(1'b0),
 
     // from register interface
     .we     (1'b0),
@@ -276,6 +313,7 @@ module sram_ctrl_regs_reg_top
   ) u_status_scr_key_valid (
     .clk_i   (clk_i),
     .rst_ni  (rst_ni),
+    .reinit_i(1'b0),
 
     // from register interface
     .we     (1'b0),
@@ -303,6 +341,7 @@ module sram_ctrl_regs_reg_top
   ) u_status_scr_key_seed_valid (
     .clk_i   (clk_i),
     .rst_ni  (rst_ni),
+    .reinit_i(1'b0),
 
     // from register interface
     .we     (1'b0),
@@ -330,6 +369,7 @@ module sram_ctrl_regs_reg_top
   ) u_status_init_done (
     .clk_i   (clk_i),
     .rst_ni  (rst_ni),
+    .reinit_i(1'b0),
 
     // from register interface
     .we     (1'b0),
@@ -357,6 +397,7 @@ module sram_ctrl_regs_reg_top
   ) u_status_readback_error (
     .clk_i   (clk_i),
     .rst_ni  (rst_ni),
+    .reinit_i(1'b0),
 
     // from register interface
     .we     (1'b0),
@@ -384,6 +425,7 @@ module sram_ctrl_regs_reg_top
   ) u_status_sram_alert (
     .clk_i   (clk_i),
     .rst_ni  (rst_ni),
+    .reinit_i(1'b0),
 
     // from register interface
     .we     (1'b0),
@@ -412,6 +454,7 @@ module sram_ctrl_regs_reg_top
   ) u_exec_regwen (
     .clk_i   (clk_i),
     .rst_ni  (rst_ni),
+    .reinit_i(1'b0),
 
     // from register interface
     .we     (exec_regwen_we),
@@ -443,6 +486,7 @@ module sram_ctrl_regs_reg_top
   ) u_exec (
     .clk_i   (clk_i),
     .rst_ni  (rst_ni),
+    .reinit_i(1'b0),
 
     // from register interface
     .we     (exec_gated_we),
@@ -471,6 +515,7 @@ module sram_ctrl_regs_reg_top
   ) u_ctrl_regwen (
     .clk_i   (clk_i),
     .rst_ni  (rst_ni),
+    .reinit_i(1'b0),
 
     // from register interface
     .we     (ctrl_regwen_we),
@@ -514,6 +559,7 @@ module sram_ctrl_regs_reg_top
   ) u_ctrl_renew_scr_key (
     .clk_i   (clk_i),
     .rst_ni  (rst_ni),
+    .reinit_i(1'b0),
 
     // from register interface
     .we     (ctrl_gated_we),
@@ -542,6 +588,7 @@ module sram_ctrl_regs_reg_top
   ) u_ctrl_init (
     .clk_i   (clk_i),
     .rst_ni  (rst_ni),
+    .reinit_i(1'b0),
 
     // from register interface
     .we     (ctrl_gated_we),
@@ -571,6 +618,7 @@ module sram_ctrl_regs_reg_top
   ) u_scr_key_rotated (
     .clk_i   (clk_i),
     .rst_ni  (rst_ni),
+    .reinit_i(1'b0),
 
     // from register interface
     .we     (scr_key_rotated_we),
@@ -599,6 +647,7 @@ module sram_ctrl_regs_reg_top
   ) u_readback_regwen (
     .clk_i   (clk_i),
     .rst_ni  (rst_ni),
+    .reinit_i(1'b0),
 
     // from register interface
     .we     (readback_regwen_we),
@@ -630,6 +679,7 @@ module sram_ctrl_regs_reg_top
   ) u_readback (
     .clk_i   (clk_i),
     .rst_ni  (rst_ni),
+    .reinit_i(1'b0),
 
     // from register interface
     .we     (readback_gated_we),
@@ -734,7 +784,9 @@ module sram_ctrl_regs_reg_top
   // Generate write-enables
   assign alert_test_we = racl_addr_hit_write[0] & reg_we & !reg_error;
 
-  assign alert_test_wd = reg_wdata[0];
+  assign alert_test_fatal_error_wd = reg_wdata[0];
+
+  assign alert_test_regwen_wd = reg_wdata[31];
   assign exec_regwen_we = racl_addr_hit_write[2] & reg_we & !reg_error;
 
   assign exec_regwen_wd = reg_wdata[0];
@@ -778,6 +830,7 @@ module sram_ctrl_regs_reg_top
     unique case (1'b1)
       racl_addr_hit_read[0]: begin
         reg_rdata_next[0] = '0;
+        reg_rdata_next[31] = alert_test_regwen_qs;
       end
 
       racl_addr_hit_read[1]: begin
